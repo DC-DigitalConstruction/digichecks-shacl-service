@@ -1,0 +1,97 @@
+PREFIX xsd: <http://www.w3.org/2001/XMLSchema#>
+PREFIX qudt: <http://qudt.org/schema/qudt/>
+PREFIX sh: <http://www.w3.org/ns/shacl#>
+PREFIX otl: <https://otl.buildingsmart.org/IFC4_ADD2_TC1/def/>
+PREFIX owl: <http://www.w3.org/2002/07/owl#>
+PREFIX fx: <http://sparql.xyz/facade-x/ns/>
+PREFIX xyz: <http://sparql.xyz/facade-x/data/>
+PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
+PREFIX digic: <https://digichecks.eu/psetconversion-ontology#>
+PREFIX sml: <https://w3id.org/sml/def#>
+PREFIX ex: <http://example.org/realia/dataset/>
+PREFIX realia: <http://realia.es/realia-otl/>
+
+CONSTRUCT {
+  ?CGPNode rdf:type ?CGPTypeNode .
+  ?CGPNode sml:isConnectedTo ?LGANode .
+  ?LGANode rdf:type realia:LGA .
+  ?LGANode sml:isConnectedTo ?SupplyPointNode .
+  ?SupplyPointNode rdf:type ?SupplyPointTypeNode .
+  ?SupplyPointNode realia:designPower ?powerAmountNode . 
+  ?powerAmountNode sml:hasUnit qudt:KiloW .
+  ?powerAmountNode rdf:value ?powerAmountDouble .
+  ?CGPNode realia:simultaneousPower ?simultaneousPowerNode . 
+  ?simultaneousPowerNode sml:hasUnit qudt:KiloW .
+  ?simultaneousPowerNode rdf:value ?simultaneousPowerDouble .
+  
+  # Triples for total apartment power and charging point power
+  ex:realiaMadridProject rdf:type realia:RealiaProject .
+  ex:realiaMadridProject realia:totalApartmentPower ?totalApartmentPowerNode .
+  ?totalApartmentPowerNode sml:hasUnit qudt:KiloW .
+  ?totalApartmentPowerNode rdf:value ?totalApartmentPowerDouble.
+  ex:realiaMadridProject realia:totalChargingPointPower ?totalChargingPointPowerNode .
+  ?totalChargingPointPowerNode sml:hasUnit qudt:KiloW .
+  ?totalChargingPointPowerNode rdf:value ?totalChargingPointPower.
+  ex:realiaMadridProject realia:neededChargingPointPower ?neededChargingPointPowerNode .
+  ?neededChargingPointPowerNode sml:hasUnit qudt:KiloW .
+  ?neededChargingPointPowerNode rdf:value ?neededChargingPointPower.
+}
+WHERE {
+  {
+    SELECT 
+      (SUM(IF(?SupplyPointTypeName = "Apartment", ?power, 0)) AS ?totalApartmentPowerDouble)
+      (SUM(IF(?SupplyPointTypeName = "ChargingPoint", ?power, 0)) AS ?totalChargingPointPower)
+      (COUNT(DISTINCT ?apartmentSupplyPoint) AS ?apartmentCount)
+    WHERE {
+      SERVICE <x-sparql-anything:>
+      {
+        fx:properties fx:location ?_uri; fx:blank-nodes false .
+        ?row rdf:type xyz:row .
+        ?row rdf:_7 ?SupplyPoint .
+        ?row rdf:_8 ?SupplyPointType .
+        ?SupplyPointType rdf:_1 ?SupplyPointTypeName .
+        ?row rdf:_9 ?powerAmount .
+        ?powerAmount rdf:_1 ?powerAmountString .
+        
+        BIND(xsd:double(?powerAmountString) AS ?power)
+        BIND(IF(?SupplyPointTypeName = "Apartment", ?SupplyPoint, ?undef) AS ?apartmentSupplyPoint)
+      }
+    }
+  }
+  
+  # Calculate needed apartment power
+  BIND(xsd:double(?apartmentCount * 3.68 * 0.1) AS ?neededChargingPointPower)
+  
+  SERVICE <x-sparql-anything:>
+  {
+    
+fx:properties fx:location ?_uri; fx:blank-nodes false .
+    ?row rdf:type xyz:row .
+    ?row rdf:_1 ?CGP .
+    ?CGP rdf:_1 ?CGPName .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/", STR(?CGPName))) AS ?CGPNode) .
+    ?row rdf:_2 ?CGPType .
+    ?CGPType rdf:_1 ?CGPTypeName .
+    BIND(URI(CONCAT("http://realia.es/realia-otl/", STR(?CGPTypeName))) AS ?CGPTypeNode) .
+    ?row rdf:_3 ?LGA .
+    ?LGA rdf:_1 ?LGAName .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/", STR(?LGAName))) AS ?LGANode) .
+    ?row rdf:_7 ?SupplyPoint .
+    ?SupplyPoint rdf:_1 ?SupplyPointName .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/", STR(?SupplyPointName))) AS ?SupplyPointNode) .
+    ?row rdf:_8 ?SupplyPointType .
+    ?SupplyPointType rdf:_1 ?SupplyPointTypeName .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/", STR(?SupplyPointTypeName))) AS ?SupplyPointTypeNode) .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/", STR(?SupplyPointName),"-Power")) AS ?powerAmountNode) .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/","totalApartmentPowerMadrid")) AS ?totalApartmentPowerNode) .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/","totalChargingPointPowerMadrid")) AS ?totalChargingPointPowerNode) .
+    BIND(URI(CONCAT("http://example.org/realia/dataset/","neededChargingPointPowerMadrid")) AS ?neededChargingPointPowerNode) .
+    ?row rdf:_9 ?powerAmount .
+    ?powerAmount rdf:_1 ?powerAmountString .
+    BIND(xsd:double(?powerAmountString) AS ?powerAmountDouble)
+    ?row rdf:_10 ?simultaneousPower .
+    ?simultaneousPower rdf:_1 ?simultaneousPowerString .
+    BIND(xsd:double(?simultaneousPowerString) AS ?simultaneousPowerDouble)
+    BIND(URI(CONCAT("http://realia.es/realia-otl/", STR(?CGPName),"-SimPower")) AS ?simultaneousPowerNode) .
+  }
+}
