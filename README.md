@@ -47,6 +47,9 @@ The DigiChecks SHACL Compliancy Check Service is part of the DigiChecks framewor
 
    Save the generated `client_id` and `client_secret` for authentication.
 
+7. **Download sparql-anything package**
+   Download the `sparql-anything-0.9.0.jar` package and add it to the `api/utils/` directory.
+
 The API will be available at `http://localhost:8000`. API documentation is accessible at `http://localhost:8000/docs`.
 
 ## Architecture
